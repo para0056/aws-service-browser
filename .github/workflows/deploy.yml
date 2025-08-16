@@ -1,0 +1,84 @@
+name: Deploy Full Stack
+on:
+  push:
+    branches: [main]
+
+jobs:
+  cdk-deploy:
+    name: CDK Deploy
+    runs-on: ubuntu-latest
+    outputs:
+      cloudfront_domain: ${{ steps.extract.outputs.cf_domain }}
+      site_bucket: ${{ steps.extract.outputs.bucket }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install CDK dependencies
+        working-directory: ./service-browser-infra
+        run: npm ci
+
+      - name: Build & Deploy CDK
+        working-directory: ./service-browser-infra
+        run: |
+          npm run build
+          npx cdk deploy --require-approval never --outputs-file ../cdk-outputs.json
+
+      - name: Extract CDK Outputs
+        id: extract
+        run: |
+          echo "cf_domain=$(jq -r '.ServiceBrowserStack.CloudFrontDomain' cdk-outputs.json)" >> $GITHUB_OUTPUT
+          echo "bucket=$(jq -r '.ServiceBrowserStack.SiteBucketName' cdk-outputs.json)" >> $GITHUB_OUTPUT
+
+  app-deploy:
+    name: App Build & S3 Sync
+    needs: cdk-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install App dependencies
+        working-directory: ./service-browser-app
+        run: npm ci
+
+      - name: Build App
+        working-directory: ./service-browser-app
+        run: npm run build
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync service-browser-app/dist s3://${{ needs.cdk-deploy.outputs.site_bucket }} --delete
+
+  terraform-deploy:
+    name: Configure Cloudflare
+    needs: cdk-deploy
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: cccccckefuifdlrigebkiitveinbuengvugcngiejntu${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.5.5'
+
+      - name: Terraform Init
+        working-directory: ./cloudflare-tf
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: ./cloudflare-tf
+        run: |
+          terraform apply -auto-approve \
+            -var="cloudflare_zone_id=${{ secrets.CLOUDFLARE_ZONE_ID }}" \
+            -var="cloudfront_distribution_domain=${{ needs.cdk-deploy.outputs.cloudfront_domain }}"
