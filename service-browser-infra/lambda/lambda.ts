@@ -14,11 +14,19 @@ export const handler = async () => {
         const url = new URL(svc.jsonUrl, BASE).href;
         const data = await (await fetch(url)).json();
         for (const [action, meta] of Object.entries<any>(data.actions)) {
+            const annotations: string[] = Array.isArray(meta.annotations) ? [...meta.annotations] : [];
+            if (typeof meta.accessLevel === 'string' && meta.accessLevel.toLowerCase() === 'write') {
+                if (!annotations.some((a: string) => a.toLowerCase().startsWith('iswrite'))) {
+                    annotations.push('IsWrite: true');
+                }
+            }
             entries.push({
                 service: svc.serviceName,
                 action,
                 description: meta.description,
-                annotations: meta.annotations || [],
+                annotations,
+                conditionKeys: meta.conditionKeys || [],
+                resourceTypes: meta.resourceTypes ? Object.keys(meta.resourceTypes) : [],
             });
         }
     }
