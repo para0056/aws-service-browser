@@ -38,7 +38,8 @@ EventBridge ─▶ Lambda ─▶ S3 (private)
 1. **Repository secrets/variables**
    - `ACTIONS_ROLE_ARN`: Value from the `GitHubActionsRoleArn` stack output.
    - `AWS_REGION`: Region that hosts the bucket (e.g., `ca-central-1`).
-   - Optional: `PAGES_CUSTOM_DOMAIN` if you map Pages to a vanity URL.
+   - Optional: `PAGES_BASE_PATH` if you need something other than the default `/<repo>/` base (set to `/` when using a custom domain, otherwise you can skip it and the workflow auto-detects your repo name).
+   - Optional: `PAGES_CUSTOM_DOMAIN` if you map Pages to a vanity URL (pair this with `PAGES_BASE_PATH=/`).
 2. **GitHub Pages**
    - Enable Pages => Source: *GitHub Actions*.
    - (Optional) Configure a custom domain + DNS.
