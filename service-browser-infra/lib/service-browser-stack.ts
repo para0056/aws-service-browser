@@ -137,14 +137,15 @@ export class ServiceBrowserStack extends cdk.Stack {
         });
 
         if (props?.githubOidc) {
+            if (!props.githubOidcProviderArn) {
+                throw new Error('GitHub OIDC provider ARN must be supplied via `githubOidcProviderArn`.');
+            }
             const subject = resolveGithubSubject(props.githubOidc);
-            const oidcProvider = props.githubOidcProviderArn
-                ? iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(this, 'GitHubOidcProvider', props.githubOidcProviderArn)
-                : new iam.OpenIdConnectProvider(this, 'GitHubOidcProvider', {
-                    url: 'https://token.actions.githubusercontent.com',
-                    clientIds: ['sts.amazonaws.com'],
-                    thumbprints: ['6938fd4d98bab03faadb97b34396831e3780aea1'],
-                });
+            const oidcProvider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+                this,
+                'GitHubOidcProvider',
+                props.githubOidcProviderArn,
+            );
 
             const githubPrincipal = new iam.OpenIdConnectPrincipal(oidcProvider).withConditions({
                 StringEquals: {
@@ -174,12 +175,6 @@ export class ServiceBrowserStack extends cdk.Stack {
                 value: githubRole.roleArn,
                 description: 'IAM role that GitHub Actions assumes to read aws-actions.json',
             });
-            if (!props.githubOidcProviderArn) {
-                new cdk.CfnOutput(this, 'GitHubOidcProviderArn', {
-                    value: oidcProvider.openIdConnectProviderArn,
-                    description: 'OIDC provider configured for GitHub Actions',
-                });
-            }
         }
     }
 }
