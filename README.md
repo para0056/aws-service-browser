@@ -126,7 +126,7 @@ The `hybrid-gh-pages-prototype` branch experiments with keeping the nightly Even
 2. A GitHub Actions workflow (`deploy-gh-pages.yml`) assumes a read-only IAM role, downloads the JSON into `service-browser-app/public/`, and runs `npm run build`.
 3. The workflow uploads the `dist/` bundle to GitHub Pages, giving you a free CDN-backed front end while AWS continues to own the scraping job.
 
-Implementation details, IAM requirements, secrets, and trigger options are documented in `docs/hybrid-github-pages.md`.
+Implementation details, IAM requirements, secrets, trigger options, and Pages-specific variables (e.g., `PAGES_BASE_PATH` to override the default `/<repo>/` base) are documented in `docs/hybrid-github-pages.md`.
 
 ## Cleanup
 
