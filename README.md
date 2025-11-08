@@ -90,9 +90,9 @@ Set the following environment variables before running `cdk synth/deploy` if you
 | `GITHUB_REPO_NAME` | ✅* | Repository name (e.g., `aws-service-browser`). Not required if `GITHUB_OIDC_SUBJECT` is set. |
 | `GITHUB_SUBJECT_FILTER` | ❌ | Portion of the GitHub OIDC subject to trust. Defaults to `ref:refs/heads/main`. Use `environment:github-pages` to scope to a specific Pages environment. Ignored if `GITHUB_OIDC_SUBJECT` is set. |
 | `GITHUB_OIDC_SUBJECT` | ❌ | Full GitHub Actions subject string (e.g., `repo:user/repo:environment:github-pages`). Use this if the repo lives outside the specified owner or you need full control of the subject pattern. |
-| `GITHUB_OIDC_PROVIDER_ARN` | ❌ | Re-use an existing `token.actions.githubusercontent.com` provider instead of creating a new one. |
+| `GITHUB_OIDC_PROVIDER_ARN` | ✅ | ARN of the `token.actions.githubusercontent.com` IAM identity provider created by the bootstrap CloudFormation stack (only one provider can exist per account). |
 
-When configured, the stack emits `GitHubActionsRoleArn` (the role to assume from GitHub Actions) and `GitHubOidcProviderArn` (if a new provider was created). The role is scoped to `s3:GetObject` on `aws-actions.json` only and requires the GitHub workflow identity to match `repo:<owner>/<repo>:<filter>`.
+When configured, the stack emits `GitHubActionsRoleArn` (the role to assume from GitHub Actions). The role is scoped to `s3:GetObject` on `aws-actions.json` only and requires the GitHub workflow identity to match `repo:<owner>/<repo>:<filter>` (or the exact `GITHUB_OIDC_SUBJECT`). Use the provided bootstrap CloudFormation template to create the identity provider once per account and pass its ARN via `GITHUB_OIDC_PROVIDER_ARN`.
 
 ### Optional: Skip AWS Site Hosting
 
