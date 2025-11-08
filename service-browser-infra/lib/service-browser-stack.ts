@@ -11,13 +11,18 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from 'path';
 
 export interface GitHubOidcConfig {
-    readonly owner: string;
-    readonly repo: string;
+    readonly owner?: string;
+    readonly repo?: string;
     /**
      * Portion of the GitHub subject claim to match (e.g., `ref:refs/heads/main` or `environment:github-pages`).
      * Defaults to `ref:refs/heads/main`.
      */
     readonly subjectFilter?: string;
+    /**
+     * Full `token.actions.githubusercontent.com:sub` string (e.g., `repo:user/repo:environment:github-pages`).
+     * When provided, `owner`, `repo`, and `subjectFilter` are ignored.
+     */
+    readonly subject?: string;
 }
 
 export interface ServiceBrowserStackProps extends cdk.StackProps {
@@ -132,6 +137,7 @@ export class ServiceBrowserStack extends cdk.Stack {
         });
 
         if (props?.githubOidc) {
+            const subject = resolveGithubSubject(props.githubOidc);
             const oidcProvider = props.githubOidcProviderArn
                 ? iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(this, 'GitHubOidcProvider', props.githubOidcProviderArn)
                 : new iam.OpenIdConnectProvider(this, 'GitHubOidcProvider', {
@@ -140,13 +146,12 @@ export class ServiceBrowserStack extends cdk.Stack {
                     thumbprints: ['6938fd4d98bab03faadb97b34396831e3780aea1'],
                 });
 
-            const subjectFilter = props.githubOidc.subjectFilter ?? 'ref:refs/heads/main';
             const githubPrincipal = new iam.OpenIdConnectPrincipal(oidcProvider).withConditions({
                 StringEquals: {
                     'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
                 },
                 StringLike: {
-                    'token.actions.githubusercontent.com:sub': `repo:${props.githubOidc.owner}/${props.githubOidc.repo}:${subjectFilter}`,
+                    'token.actions.githubusercontent.com:sub': subject,
                 },
             });
 
@@ -177,4 +182,15 @@ export class ServiceBrowserStack extends cdk.Stack {
             }
         }
     }
+}
+
+function resolveGithubSubject(config: GitHubOidcConfig): string {
+    if (config.subject) {
+        return config.subject;
+    }
+    if (!config.owner || !config.repo) {
+        throw new Error('GitHub OIDC configuration requires either `subject` or both `owner` and `repo`.');
+    }
+    const subjectFilter = config.subjectFilter ?? 'ref:refs/heads/main';
+    return `repo:${config.owner}/${config.repo}:${subjectFilter}`;
 }
