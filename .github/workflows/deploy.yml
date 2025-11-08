@@ -52,6 +52,7 @@ jobs:
     name: App Build & S3 Sync
     needs: cdk-deploy
     runs-on: ubuntu-latest
+    if: ${{ needs.cdk-deploy.outputs.site_bucket && needs.cdk-deploy.outputs.site_bucket != 'null' }}
     permissions:
       contents: read
       id-token: write
@@ -84,6 +85,7 @@ jobs:
     name: Configure Cloudflare
     needs: cdk-deploy
     runs-on: ubuntu-latest
+    if: ${{ needs.cdk-deploy.outputs.cloudfront_domain && needs.cdk-deploy.outputs.cloudfront_domain != 'null' }}
     env:
       CLOUDFLARE_API_TOKEN: cccccckefuifdlrigebkiitveinbuengvugcngiejntu${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
