@@ -29,7 +29,7 @@ EventBridge ─▶ Lambda ─▶ S3 (private)
 ## AWS Requirements
 
 1. **Data bucket**: Continue deploying the `ActionsIndexBucket` from `ServiceBrowserStack`. No public access is required.
-2. **IAM role for GitHub**: Provide `GITHUB_REPO_OWNER`/`GITHUB_REPO_NAME` (and optionally `GITHUB_SUBJECT_FILTER`, `GITHUB_OIDC_PROVIDER_ARN`) before running `cdk deploy`. The stack will provision an OpenID Connect provider for `token.actions.githubusercontent.com` (if needed) and an IAM role limited to `s3:GetObject` on `aws-actions.json`. The role ARN is exposed as the `GitHubActionsRoleArn` stack output (and, when created, the provider ARN via `GitHubOidcProviderArn`).
+2. **IAM role for GitHub**: Provide `GITHUB_REPO_OWNER`/`GITHUB_REPO_NAME` (and optionally `GITHUB_SUBJECT_FILTER`, `GITHUB_OIDC_PROVIDER_ARN`) before running `cdk deploy`. If your repo lives outside that owner, set `GITHUB_OIDC_SUBJECT` to the full Actions subject string (e.g., `repo:user/repo:environment:github-pages`). The stack will provision an OpenID Connect provider for `token.actions.githubusercontent.com` (if needed) and an IAM role limited to `s3:GetObject` on `aws-actions.json`. The role ARN is exposed as the `GitHubActionsRoleArn` stack output (and, when created, the provider ARN via `GitHubOidcProviderArn`).
 3. **Optional SNS trigger**: To avoid waiting for the cron schedule, the Lambda can publish an SNS notification (or call a GitHub repository dispatch webhook) once it finishes writing the file. This can kick off the GitHub workflow immediately.
 4. **Skip static site infra**: Set `ENABLE_SITE_HOSTING=false` before `cdk deploy` to avoid provisioning the CloudFront distribution and site bucket when GitHub Pages hosts the UI.
 
