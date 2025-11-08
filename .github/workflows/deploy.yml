@@ -16,7 +16,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.CDK_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.ACTIONS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - uses: actions/setup-node@v3
