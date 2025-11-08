@@ -7,6 +7,9 @@ jobs:
   cdk-deploy:
     name: CDK Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       cloudfront_domain: ${{ steps.extract.outputs.cf_domain }}
       site_bucket: ${{ steps.extract.outputs.bucket }}
@@ -18,6 +21,9 @@ jobs:
         with:
           role-to-assume: ${{ secrets.ACTIONS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+      - name: Check creds
+        run: |
+          aws sts get-caller-identity
 
       - uses: actions/setup-node@v3
         with:
@@ -43,8 +49,17 @@ jobs:
     name: App Build & S3 Sync
     needs: cdk-deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ACTIONS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - uses: actions/setup-node@v3
         with:
