@@ -8,6 +8,7 @@ import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as path from 'path';
 
 export interface GitHubOidcConfig {
@@ -40,6 +41,10 @@ export interface ServiceBrowserStackProps extends cdk.StackProps {
      * If undefined, a new provider is created.
      */
     readonly githubOidcProviderArn?: string;
+    /**
+     * Optional email address that receives cost alerts when the monthly budget is exceeded.
+     */
+    readonly budgetAlertEmail?: string;
 }
 
 export class ServiceBrowserStack extends cdk.Stack {
@@ -174,6 +179,36 @@ export class ServiceBrowserStack extends cdk.Stack {
             new cdk.CfnOutput(this, 'GitHubActionsRoleArn', {
                 value: githubRole.roleArn,
                 description: 'IAM role that GitHub Actions assumes to read aws-actions.json',
+            });
+        }
+
+        if (props?.budgetAlertEmail) {
+            new budgets.CfnBudget(this, 'MonthlyBudget', {
+                budget: {
+                    budgetLimit: {
+                        amount: 5,
+                        unit: 'USD',
+                    },
+                    budgetName: 'ServiceBrowserMonthlyBudget',
+                    budgetType: 'COST',
+                    timeUnit: 'MONTHLY',
+                },
+                notificationsWithSubscribers: [
+                    {
+                        notification: {
+                            comparisonOperator: 'GREATER_THAN',
+                            notificationType: 'ACTUAL',
+                            threshold: 100,
+                            thresholdType: 'PERCENTAGE',
+                        },
+                        subscribers: [
+                            {
+                                address: props.budgetAlertEmail,
+                                subscriptionType: 'EMAIL',
+                            },
+                        ],
+                    },
+                ],
             });
         }
     }
