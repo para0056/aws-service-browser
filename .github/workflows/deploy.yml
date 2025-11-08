@@ -5,6 +5,8 @@ on:
 
 jobs:
   cdk-deploy:
+    env:
+      ENABLE_SITE_HOSTING: ${{ vars.ENABLE_SITE_HOSTING || 'false' }}
     name: CDK Deploy
     runs-on: ubuntu-latest
     permissions:
