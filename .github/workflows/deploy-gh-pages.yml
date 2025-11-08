@@ -45,7 +45,7 @@ jobs:
 
       - name: Download latest aws-actions.json
         env:
-          DATA_BUCKET_NAME: ${{ vars.ACTIONS_DATA_BUCKET }}
+          DATA_BUCKET_NAME: ${{ secrets.ACTIONS_DATA_BUCKET }}
         run: |
           aws s3 cp "s3://$DATA_BUCKET_NAME/aws-actions.json" service-browser-app/public/aws-actions.json
 
