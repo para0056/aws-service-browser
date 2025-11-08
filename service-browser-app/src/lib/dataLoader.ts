@@ -6,6 +6,10 @@ const INDEX_CACHE_KEY = `${CACHE_VERSION}:service-index`;
 const ACTION_CACHE_PREFIX = `${CACHE_VERSION}:service-actions:`;
 const ALL_ACTIONS_CACHE_KEY = `${CACHE_VERSION}:all-actions`;
 
+const BASE_PATH = normalizeBase(import.meta.env.BASE_URL ?? '/');
+const SERVICE_INDEX_URL = resolveAssetUrl('service-index.json');
+const ALL_ACTIONS_URL = resolveAssetUrl('aws-actions.json');
+
 const INDEX_TTL = 1000 * 60 * 60 * 24; // 24 hours
 const ACTION_TTL = 1000 * 60 * 60 * 24 * 7; // 7 days
 const ALL_ACTIONS_TTL = 1000 * 60 * 60 * 24; // 24 hours
@@ -35,7 +39,7 @@ export async function loadServiceIndex(options: { forceRefresh?: boolean } = {})
         if (cached) return cached;
     }
 
-    const response = await fetch('/service-index.json', { cache: 'no-cache' });
+    const response = await fetch(SERVICE_INDEX_URL, { cache: 'no-cache' });
     if (!response.ok) {
         const fallback = await readCache<ServiceIndexEntry[]>(INDEX_CACHE_KEY);
         if (fallback) return fallback.data;
@@ -168,7 +172,7 @@ async function loadAllActions(): Promise<AwsAction[]> {
     const cached = await readFresh<AwsAction[]>(ALL_ACTIONS_CACHE_KEY, ALL_ACTIONS_TTL);
     if (cached) return cached;
 
-    const response = await fetch('/aws-actions.json', { cache: 'no-cache' });
+    const response = await fetch(ALL_ACTIONS_URL, { cache: 'no-cache' });
     if (!response.ok) {
         const fallback = await readCache<AwsAction[]>(ALL_ACTIONS_CACHE_KEY);
         if (fallback) return fallback.data;
@@ -203,4 +207,18 @@ function normalizeAggregateAction(raw: any): AwsAction | null {
 async function loadActionsFromAggregate(service: string): Promise<AwsAction[]> {
     const all = await loadAllActions();
     return all.filter(action => action.service === service);
+}
+
+function resolveAssetUrl(asset: string): string {
+    return `${BASE_PATH}${asset}`.replace(/([^:]\/)\/+/g, '$1'); // collapse double slashes after scheme
+}
+
+function normalizeBase(base: string): string {
+    if (!base) {
+        return '/';
+    }
+    if (!base.startsWith('/')) {
+        base = `/${base}`;
+    }
+    return base.endsWith('/') ? base : `${base}/`;
 }
