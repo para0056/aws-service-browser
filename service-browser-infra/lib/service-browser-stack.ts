@@ -4,9 +4,11 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as path from 'path';
 
 export interface GitHubOidcConfig {
     readonly owner: string;
@@ -99,14 +101,15 @@ export class ServiceBrowserStack extends cdk.Stack {
             description: 'S3 bucket for aggregated JSON'
         });
 
-        // Lambda to aggregate JSON (Node.js 20.x, AWS SDK v3)
-        const aggregator = new lambda.Function(this, 'AggregatorFunction', {
+        // Lambda to aggregate JSON (Node.js 20.x, bundled via esbuild)
+        const aggregator = new nodejs.NodejsFunction(this, 'AggregatorFunction', {
             runtime: lambda.Runtime.NODEJS_20_X,
-            handler: 'index.handler',
-            code: lambda.Code.fromAsset('lambda'),
+            entry: path.join(__dirname, '..', 'lambda', 'lambda.ts'),
+            handler: 'handler',
             environment: {
                 BUCKET_NAME: dataBucket.bucketName,
-                BASE_URL: 'https://docs.aws.amazon.com/service-authorization/latest/reference/',
+                BASE_URL: 'https://servicereference.us-east-1.amazonaws.com/',
+                MAX_CONCURRENCY: '12',
             },
             timeout: cdk.Duration.minutes(5),
         });

@@ -4,7 +4,7 @@ Discover and share the AWS IAM actions your team relies on. This project aggrega
 
 ## Solution Overview
 
-- **Data aggregation** – A scheduled Lambda function (`service-browser-infra/lambda/lambda.ts`) downloads every service definition from the AWS documentation and writes a flattened `aws-actions.json` manifest to a private S3 bucket.
+- **Data aggregation** – A scheduled Lambda function (`service-browser-infra/lambda/lambda.ts`) downloads every service definition from the AWS Service Authorization Reference JSON index (`https://servicereference.us-east-1.amazonaws.com/`) and writes a flattened `aws-actions.json` manifest to a private S3 bucket.
 - **Static application hosting** – Another S3 bucket holds the pre-built front-end (see `service-browser-app/`), which is distributed through CloudFront with HTTPS and caching (`service-browser-infra/lib/service-browser-stack.ts`).
 - **Access control** – Optional Terraform in `cloudflare-tf/` front-ends the CloudFront distribution with Cloudflare DNS and Access to enforce Zero Trust policies.
 - **Infrastructure as code** – AWS CDK (TypeScript) provisions all AWS resources; Terraform handles the Cloudflare-side integration.
@@ -43,12 +43,7 @@ Discover and share the AWS IAM actions your team relies on. This project aggrega
    npx cdk bootstrap aws://<ACCOUNT_ID>/<REGION>
    # Example: npx cdk bootstrap aws://123456789012/ca-central-1
    ```
-2. Bundle the Lambda (ensures `lambda/index.js` exists and includes dependencies). One option is:
-   ```bash
-   npx esbuild lambda/lambda.ts --bundle --platform=node --target=node20 --format=cjs --outfile=lambda/index.js
-   ```
-   This creates a single-file handler that matches the CDK configuration (`handler: index.handler`). If you prefer `tsc`, copy the compiled file from `dist/lambda/lambda.js` to `lambda/index.js` and make sure `lambda/node_modules` contains `@aws-sdk/client-s3` and `node-fetch`.
-3. Synthesize and deploy:
+3. Synthesize and deploy (the CDK stack uses `NodejsFunction`, so bundling happens automatically during synth/deploy as long as `esbuild` is installed via `npm ci`):
    ```bash
    npm run build
    npx cdk synth
