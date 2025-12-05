@@ -57,3 +57,6 @@ read*lock
 
 # Nx cache
 .nx/
+
+# Local helper scripts
+scripts/set-github-oidc-env.sh
