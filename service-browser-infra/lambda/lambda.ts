@@ -16,7 +16,12 @@ type ServiceAction = {
     Description?: string;
     Annotations?: Record<string, unknown>;
     ActionConditionKeys?: string[];
-    Resources?: Array<{ Name?: string | null }>;
+    ConditionKeys?: string[];
+    Resources?: Array<{
+        Name?: string | null;
+        ConditionKeys?: string[];
+    }>;
+    ResourceTypes?: Record<string, unknown>;
 };
 
 export const handler = async () => {
@@ -77,10 +82,8 @@ async function fetchServiceActions(entry: ServiceEntry) {
 
         return actionList.map(action => {
             const annotations = extractAnnotations(action.Annotations);
-            const conditionKeys = Array.isArray(action.ActionConditionKeys) ? action.ActionConditionKeys : [];
-            const resourceTypes = Array.isArray(action.Resources)
-                ? action.Resources.map(r => r?.Name).filter((name): name is string => Boolean(name))
-                : [];
+            const resourceTypes = extractResourceTypes(action);
+            const mergedConditionKeys = extractConditionKeys(action);
 
             if (typeof action === 'object' && action !== null) {
                 if (typeof (action as any).AccessLevel === 'string') {
@@ -96,7 +99,7 @@ async function fetchServiceActions(entry: ServiceEntry) {
                 action: action.Name,
                 description: action.Description ?? '',
                 annotations,
-                conditionKeys,
+                conditionKeys: mergedConditionKeys,
                 resourceTypes,
             };
         });
@@ -136,4 +139,40 @@ function formatValue(value: unknown): string {
         return JSON.stringify(value);
     }
     return String(value);
+}
+
+function mergeConditionKeys(action: ServiceAction): string[] {
+    const actionKeys = Array.isArray(action.ActionConditionKeys)
+        ? action.ActionConditionKeys
+        : Array.isArray(action.ConditionKeys)
+            ? action.ConditionKeys
+            : [];
+    const resourceKeys = Array.isArray(action.Resources)
+        ? action.Resources.flatMap(resource =>
+            Array.isArray(resource?.ConditionKeys)
+                ? resource!.ConditionKeys.filter((key): key is string => typeof key === 'string' && key.trim().length > 0)
+                : []
+        )
+        : [];
+
+    const merged = [...actionKeys, ...resourceKeys];
+    return Array.from(new Set(merged));
+}
+
+function extractConditionKeys(action: ServiceAction): string[] {
+    return mergeConditionKeys(action);
+}
+
+function extractResourceTypes(action: ServiceAction): string[] {
+    const fromResources = Array.isArray(action.Resources)
+        ? action.Resources
+            .map(r => r?.Name)
+            .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+        : [];
+
+    const fromResourceTypes = action.ResourceTypes && typeof action.ResourceTypes === 'object'
+        ? Object.keys(action.ResourceTypes)
+        : [];
+
+    return Array.from(new Set([...fromResources, ...fromResourceTypes]));
 }
