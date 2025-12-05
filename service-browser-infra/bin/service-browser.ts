@@ -12,7 +12,7 @@ const githubSubject = process.env.GITHUB_OIDC_SUBJECT;
 const budgetAlertEmail = process.env.BUDGET_ALERT_EMAIL;
 const enableSiteHosting = process.env.ENABLE_SITE_HOSTING
     ? process.env.ENABLE_SITE_HOSTING.toLowerCase() === 'true'
-    : true;
+    : false;
 
 const stackProps: ServiceBrowserStackProps = {
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
