@@ -1,13 +1,12 @@
 import { get, set } from 'idb-keyval';
 import type { AwsAction, ServiceIndexEntry } from '../types';
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v4';
 const INDEX_CACHE_KEY = `${CACHE_VERSION}:service-index`;
 const ACTION_CACHE_PREFIX = `${CACHE_VERSION}:service-actions:`;
 const ALL_ACTIONS_CACHE_KEY = `${CACHE_VERSION}:all-actions`;
 
-const BASE_PATH = normalizeBase(import.meta.env.BASE_URL ?? '/');
-const SERVICE_INDEX_URL = resolveAssetUrl('service-index.json');
+const BASE_PATH = normalizeBase(((import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL) ?? '/');
 const ALL_ACTIONS_URL = resolveAssetUrl('aws-actions.json');
 
 const INDEX_TTL = 1000 * 60 * 60 * 24; // 24 hours
@@ -39,7 +38,7 @@ export async function loadServiceIndex(options: { forceRefresh?: boolean } = {})
         if (cached) return cached;
     }
 
-    const response = await fetch(SERVICE_INDEX_URL, { cache: 'no-cache' });
+    const response = await fetch(resolveAssetUrl('service-index.json'), { cache: 'no-cache' });
     if (!response.ok) {
         const fallback = await readCache<ServiceIndexEntry[]>(INDEX_CACHE_KEY);
         if (fallback) return fallback.data;
@@ -67,105 +66,15 @@ export async function loadServiceActions(
         if (cached) return cached;
     }
 
-    const sameOriginUrl = toSameOriginPath(entry.url);
-
     try {
-        const target = sameOriginUrl ?? entry.url;
-        const response = await fetch(target, { cache: 'no-cache' });
-        if (!response.ok) {
-            throw new Error(`Fetch failed: ${response.status}`);
-        }
-        const json = await response.json();
-        const actions = sameOriginUrl ? (json as AwsAction[]) : extractActions(entry.service, json);
-        await writeCache(cacheKey, actions);
-        return actions;
+        const aggregate = await loadActionsFromAggregate(entry.service);
+        await writeCache(cacheKey, aggregate);
+        return aggregate;
     } catch (err) {
         const fallback = await readCache<AwsAction[]>(cacheKey);
         if (fallback) return fallback.data;
-        const derived = await loadActionsFromAggregate(entry.service);
-        await writeCache(cacheKey, derived);
-        return derived;
+        throw err instanceof Error ? err : new Error('Failed to load actions');
     }
-}
-
-function extractActions(serviceFallback: string, doc: any): AwsAction[] {
-    const serviceName = typeof doc?.Name === 'string' ? doc.Name : serviceFallback;
-    const rawActions = Array.isArray(doc?.Actions) ? doc.Actions : [];
-
-    return rawActions
-        .map((action: any) => normalizeAction(serviceName, action))
-        .filter((action): action is AwsAction => Boolean(action));
-}
-
-function normalizeAction(serviceName: string, action: any): AwsAction | null {
-    if (!action || typeof action !== 'object') return null;
-    const actionName = typeof action.Name === 'string' ? action.Name : null;
-    if (!actionName) return null;
-
-    const annotations = extractAnnotations(action.Annotations);
-    const conditionKeys = Array.isArray(action.ActionConditionKeys)
-        ? action.ActionConditionKeys.filter((key: unknown): key is string => typeof key === 'string')
-        : [];
-
-    const resourceTypes = Array.isArray(action.Resources)
-        ? action.Resources
-            .map((resource: any) => resource?.Name)
-            .filter((value: unknown): value is string => typeof value === 'string')
-        : [];
-
-    return {
-        service: serviceName,
-        action: actionName,
-        description: typeof action.Description === 'string' ? action.Description : '',
-        annotations,
-        conditionKeys,
-        resourceTypes
-    };
-}
-
-function extractAnnotations(raw: any): string[] {
-    if (!raw || typeof raw !== 'object') return [];
-    const items: string[] = [];
-
-    if (raw.Properties && typeof raw.Properties === 'object') {
-        for (const [key, value] of Object.entries(raw.Properties)) {
-            items.push(formatAnnotation(key, value));
-        }
-    }
-
-    for (const [key, value] of Object.entries(raw)) {
-        if (key === 'Properties') continue;
-        items.push(formatAnnotation(key, value));
-    }
-
-    return items;
-}
-
-function formatAnnotation(key: string, value: unknown): string {
-    return `${key}: ${formatValue(value)}`;
-}
-
-function formatValue(value: unknown): string {
-    if (value === null || value === undefined) return 'null';
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-        return String(value);
-    }
-    if (Array.isArray(value)) {
-        return value.map(formatValue).join(', ');
-    }
-    return JSON.stringify(value);
-}
-
-function toSameOriginPath(url: string): string | null {
-    try {
-        const parsed = new URL(url, window.location.origin);
-        if (parsed.origin === window.location.origin) {
-            return parsed.pathname + parsed.search + parsed.hash;
-        }
-    } catch {
-        // ignore malformed URLs
-    }
-    return null;
 }
 
 async function loadAllActions(): Promise<AwsAction[]> {
@@ -206,7 +115,8 @@ function normalizeAggregateAction(raw: any): AwsAction | null {
 
 async function loadActionsFromAggregate(service: string): Promise<AwsAction[]> {
     const all = await loadAllActions();
-    return all.filter(action => action.service === service);
+    const scoped = all.filter(action => action.service === service);
+    return mergeByAction(scoped);
 }
 
 function resolveAssetUrl(asset: string): string {
@@ -221,4 +131,37 @@ function normalizeBase(base: string): string {
         base = `/${base}`;
     }
     return base.endsWith('/') ? base : `${base}/`;
+}
+
+function mergeByAction(actions: AwsAction[]): AwsAction[] {
+    const merged = new Map<string, AwsAction>();
+
+    for (const action of actions) {
+        const key = `${action.service}:${action.action}`;
+        const existing = merged.get(key);
+        if (!existing) {
+            merged.set(key, {
+                ...action,
+                annotations: [...action.annotations],
+                conditionKeys: [...action.conditionKeys],
+                resourceTypes: [...action.resourceTypes],
+            });
+            continue;
+        }
+
+        existing.annotations = union(existing.annotations, action.annotations);
+        existing.conditionKeys = union(existing.conditionKeys, action.conditionKeys);
+        existing.resourceTypes = union(existing.resourceTypes, action.resourceTypes);
+
+        if (!existing.description && action.description) {
+            existing.description = action.description;
+        }
+    }
+
+    return Array.from(merged.values());
+}
+
+function union(a: string[], b: string[]): string[] {
+    const set = new Set<string>([...a, ...b].filter((item): item is string => typeof item === 'string'));
+    return Array.from(set);
 }
