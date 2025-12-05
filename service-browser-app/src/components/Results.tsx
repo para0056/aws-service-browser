@@ -8,6 +8,10 @@ export default function Results({ items }: { items: AwsAction[] }) {
         count: items.length,
         getScrollElement: () => parentRef.current,
         estimateSize: () => 140,
+        getItemKey: index => {
+            const item = items[index];
+            return item ? `${item.service}:${item.action}` : index;
+        },
         overscan: 12,
     });
 
@@ -25,7 +29,7 @@ export default function Results({ items }: { items: AwsAction[] }) {
                         <div
                             key={virtualRow.key}
                             data-index={virtualRow.index}
-                            ref={virtualRow.measureElement}
+                            ref={rowVirtualizer.measureElement}
                             className="absolute left-0 right-0 px-0"
                             style={{ transform: `translateY(${virtualRow.start}px)` }}
                         >

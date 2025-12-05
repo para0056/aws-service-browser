@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aws-service-browser-v1';
+const CACHE_NAME = 'aws-service-browser-v2';
 const STATIC_ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', (event) => {
@@ -30,7 +30,13 @@ self.addEventListener('fetch', (event) => {
     const isJSON = isSameOrigin && url.pathname.endsWith('.json');
     const isAsset = isSameOrigin && url.pathname.startsWith('/assets/');
 
-    if (isJSON || isAsset) {
+    // Always prefer network for JSON to avoid stale data (fallback to cache if offline)
+    if (isJSON) {
+        event.respondWith(networkFirst(request));
+        return;
+    }
+
+    if (isAsset) {
         event.respondWith(staleWhileRevalidate(request));
         return;
     }
@@ -70,4 +76,18 @@ async function staleWhileRevalidate(request) {
 
     const response = await networkFetch;
     return response ?? Response.error();
+}
+
+async function networkFirst(request) {
+    const cache = await caches.open(CACHE_NAME);
+    try {
+        const response = await fetch(request);
+        if (response && response.ok) {
+            cache.put(request, response.clone());
+        }
+        return response;
+    } catch {
+        const cached = await cache.match(request);
+        return cached ?? Response.error();
+    }
 }
