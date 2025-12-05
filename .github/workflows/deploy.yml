@@ -8,6 +8,11 @@ jobs:
     env:
       ENABLE_SITE_HOSTING: ${{ vars.ENABLE_SITE_HOSTING || 'false' }}
       BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
+      GITHUB_OIDC_PROVIDER_ARN: ${{ secrets.AWS_OIDC_PROVIDER_ARN }}
+      GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+      GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+      GITHUB_SUBJECT_FILTER: ref:refs/heads/main
+      GITHUB_OIDC_SUBJECT: ${{ vars.GITHUB_OIDC_SUBJECT }}
     name: CDK Deploy
     runs-on: ubuntu-latest
     permissions:
