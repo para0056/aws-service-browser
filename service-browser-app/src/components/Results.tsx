@@ -44,8 +44,8 @@ function ResultCard({ action }: { action: AwsAction }) {
             <div className="font-semibold">{action.service}:{action.action}</div>
             {action.description && <p className="mt-1 text-sm text-gray-700">{action.description}</p>}
             <AnnotationsList items={action.annotations} />
-            <MetaRow label="Condition keys" items={action.conditionKeys} className="text-purple-700" />
-            <MetaRow label="Resource types" items={action.resourceTypes} className="text-green-700" />
+            <ConditionKeys items={action.conditionKeys} />
+            <ResourceTypes items={action.resourceTypes} />
         </article>
     );
 }
@@ -77,6 +77,44 @@ function MetaRow({ label, items, className }: { label: string; items: string[]; 
         <div className="mt-2 text-xs">
             <span className="font-semibold text-gray-600">{label}: </span>
             <span className={className}>{items.join(', ')}</span>
+        </div>
+    );
+}
+
+function ConditionKeys({ items }: { items: string[] }) {
+    if (!items || items.length === 0) return null;
+    return (
+        <div className="mt-3 text-xs">
+            <span className="font-semibold text-gray-600">Condition keys:</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+                {items.map(key => (
+                    <span
+                        key={key}
+                        className="inline-flex items-center rounded border border-purple-200 bg-purple-50 px-2 py-0.5 font-mono text-[11px] text-purple-800"
+                    >
+                        {key}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ResourceTypes({ items }: { items: string[] }) {
+    if (!items || items.length === 0) return null;
+    return (
+        <div className="mt-3 text-xs">
+            <span className="font-semibold text-gray-600">Resource types:</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+                {items.map(type => (
+                    <span
+                        key={type}
+                        className="inline-flex items-center rounded border border-green-200 bg-green-50 px-2 py-0.5 font-mono text-[11px] text-green-800"
+                    >
+                        {type}
+                    </span>
+                ))}
+            </div>
         </div>
     );
 }
