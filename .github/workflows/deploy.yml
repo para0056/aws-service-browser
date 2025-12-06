@@ -8,6 +8,7 @@ jobs:
     env:
       ENABLE_SITE_HOSTING: ${{ vars.ENABLE_SITE_HOSTING || 'false' }}
       BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
+      # AWS OIDC provider ARN is pulled from the AWS_OIDC_PROVIDER_ARN secret (GitHub blocks GITHUB_* secrets).
       GITHUB_OIDC_PROVIDER_ARN: ${{ secrets.AWS_OIDC_PROVIDER_ARN }}
       GITHUB_REPO_OWNER: ${{ github.repository_owner }}
       GITHUB_REPO_NAME: ${{ github.event.repository.name }}
