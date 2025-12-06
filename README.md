@@ -93,11 +93,13 @@ Set the following environment variables before running `cdk synth/deploy` if you
 | `GITHUB_OIDC_PROVIDER_ARN` | ✅ | ARN of the `token.actions.githubusercontent.com` IAM identity provider created by the bootstrap CloudFormation stack (only one provider can exist per account). |
 | `BUDGET_ALERT_EMAIL` | ❌ | Email address that receives an alert if the AWS monthly spend crosses the $5 budget (actual cost > 100%). |
 
+In CI, the CDK workflow maps the AWS OIDC provider secret `AWS_OIDC_PROVIDER_ARN` into `GITHUB_OIDC_PROVIDER_ARN` (GitHub blocks secrets starting with `GITHUB_`). The workflow auto-derives repo owner/name and uses `ref:refs/heads/main` as the default subject filter; override the subject with `GITHUB_OIDC_SUBJECT` if you need a custom pattern.
+
 When configured, the stack emits `GitHubActionsRoleArn` (the role to assume from GitHub Actions). The role is scoped to `s3:GetObject` on `aws-actions.json` only and requires the GitHub workflow identity to match `repo:<owner>/<repo>:<filter>` (or the exact `GITHUB_OIDC_SUBJECT`). Use the provided bootstrap CloudFormation template to create the identity provider once per account and pass its ARN via `GITHUB_OIDC_PROVIDER_ARN`.
 
 ### Optional: Skip AWS Site Hosting
 
-If you are hosting the UI elsewhere (e.g., GitHub Pages), set `ENABLE_SITE_HOSTING=false` before running `cdk deploy`. This prevents CDK from creating the CloudFront distribution and site bucket, leaving only the data bucket + Lambda/EventBridge pipeline in AWS.
+If you are hosting the UI elsewhere (e.g., GitHub Pages), set `ENABLE_SITE_HOSTING=false` before running `cdk deploy`. This is the default. It prevents CDK from creating the CloudFront distribution and site bucket, leaving only the data bucket + Lambda/EventBridge pipeline in AWS.
 
 ## Cost Estimates (ca-central-1)
 
