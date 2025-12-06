@@ -150,6 +150,11 @@ export default function App() {
                     </section>
                 </div>
             </main>
+            <footer className="border-t border-gray-200 bg-gray-50 py-4">
+                <div className="container px-4 text-xs text-gray-500">
+                    AWS Service Browser is a personal project and is not affiliated with, endorsed, or sponsored by Amazon Web Services.
+                </div>
+            </footer>
         </div>
     );
 }
