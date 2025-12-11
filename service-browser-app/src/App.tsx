@@ -13,6 +13,8 @@ export default function App() {
     const [selectedService, setSelectedService] = useState<ServiceIndexEntry | null>(null);
     const [serviceData, setServiceData] = useState<Record<string, AwsAction[]>>({});
     const [actionQuery, setActionQuery] = useState('');
+    const [writeFilter, setWriteFilter] = useState<'all' | 'write' | 'read'>('all');
+    const [permFilter, setPermFilter] = useState<'all' | 'pm' | 'non-pm'>('all');
     const [indexError, setIndexError] = useState<string | null>(null);
     const [serviceError, setServiceError] = useState<string | null>(null);
     const [loadingIndex, setLoadingIndex] = useState(true);
@@ -82,19 +84,40 @@ export default function App() {
     const activeServiceKey = selectedService?.service ?? '';
     const actions = activeServiceKey ? serviceData[activeServiceKey] ?? [] : [];
 
-    const fuse = useMemo(() => new Fuse(actions, {
+    const filtered = useMemo(() => {
+        return actions.filter(action => {
+            const isWrite = getIsWriteFlag(action.annotations);
+            const isPerm = getIsPermissionManagementFlag(action.annotations);
+
+            const writePass = writeFilter === 'all'
+                ? true
+                : writeFilter === 'write'
+                    ? isWrite === true
+                    : isWrite === false;
+
+            const permPass = permFilter === 'all'
+                ? true
+                : permFilter === 'pm'
+                    ? isPerm === true
+                    : isPerm === false;
+
+            return writePass && permPass;
+        });
+    }, [actions, writeFilter, permFilter]);
+
+    const fuse = useMemo(() => new Fuse(filtered, {
         keys: ['service', 'action', 'description', 'annotations', 'conditionKeys', 'resourceTypes'],
         threshold: 0.3,
         minMatchCharLength: 2,
         ignoreLocation: true
-    }), [actions]);
+    }), [filtered]);
 
     const deferredQuery = useDeferredValue(actionQuery);
 
     const results = useMemo(() => {
-        if (!deferredQuery.trim()) return actions.slice(0, 200);
+        if (!deferredQuery.trim()) return filtered.slice(0, 200);
         return fuse.search(deferredQuery).map(r => r.item).slice(0, 200);
-    }, [deferredQuery, actions, fuse]);
+    }, [deferredQuery, filtered, fuse]);
 
     return (
         <div>
@@ -136,7 +159,32 @@ export default function App() {
                                 )}
                                 {actions.length > 0 && (
                                     <>
-                                        <Search value={actionQuery} onChange={setActionQuery} total={results.length} />
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                            <Search
+                                                className="w-full md:flex-1"
+                                                value={actionQuery}
+                                                onChange={setActionQuery}
+                                                total={results.length}
+                                            />
+                                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold">IsWrite:</span>
+                                                    <div className="flex gap-1">
+                                                        <FilterButton label="All" active={writeFilter === 'all'} onClick={() => setWriteFilter('all')} />
+                                                        <FilterButton label="Write" active={writeFilter === 'write'} onClick={() => setWriteFilter('write')} />
+                                                        <FilterButton label="Read" active={writeFilter === 'read'} onClick={() => setWriteFilter('read')} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold">Permission mgmt:</span>
+                                                    <div className="flex gap-1">
+                                                        <FilterButton label="All" active={permFilter === 'all'} onClick={() => setPermFilter('all')} />
+                                                        <FilterButton label="PM" active={permFilter === 'pm'} onClick={() => setPermFilter('pm')} />
+                                                        <FilterButton label="Non-PM" active={permFilter === 'non-pm'} onClick={() => setPermFilter('non-pm')} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <Results items={results} />
                                     </>
                                 )}
@@ -156,5 +204,27 @@ export default function App() {
                 </div>
             </footer>
         </div>
+    );
+}
+
+function getIsWriteFlag(annotations: string[]): boolean | null {
+    const entry = annotations.find(a => a.toLowerCase().startsWith('iswrite'));
+    if (!entry) return null;
+    return entry.toLowerCase().includes('true');
+}
+
+function getIsPermissionManagementFlag(annotations: string[]): boolean | null {
+    const entry = annotations.find(a => a.toLowerCase().startsWith('ispermissionmanagement'));
+    if (!entry) return null;
+    return entry.toLowerCase().includes('true');
+}
+
+function FilterButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+    const base = 'rounded border px-2 py-1 text-xs';
+    const activeClass = active ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300';
+    return (
+        <button type="button" className={`${base} ${activeClass}`} onClick={onClick}>
+            {label}
+        </button>
     );
 }
