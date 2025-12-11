@@ -1,7 +1,7 @@
-type Props = { value: string; onChange: (v: string) => void; total: number; };
-export default function Search({ value, onChange, total }: Props) {
+type Props = { value: string; onChange: (v: string) => void; total: number; className?: string };
+export default function Search({ value, onChange, total, className = '' }: Props) {
     return (
-        <div className="mb-4">
+        <div className={`mb-4 ${className}`}>
             <input
                 type="search"
                 value={value}
