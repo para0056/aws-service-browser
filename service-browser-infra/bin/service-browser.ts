@@ -1,9 +1,15 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
+import Tags  from 'aws-cdk-lib';
 import { ServiceBrowserStack, ServiceBrowserStackProps } from '../lib/service-browser-stack';
 
 const app = new cdk.App();
 
+const tags = app.node.tryGetContext('tags') as Record<string, string> ?? {};
+
+Object.entries(tags).forEach(([key, value]) => {
+  cdk.Tags.of(app).add(key, value);
+});
 const githubOwner = process.env.GITHUB_REPO_OWNER;
 const githubRepo = process.env.GITHUB_REPO_NAME;
 const githubSubjectFilter = process.env.GITHUB_SUBJECT_FILTER;
