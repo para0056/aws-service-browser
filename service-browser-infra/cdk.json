@@ -1,5 +1,8 @@
 {
   "app": "npx ts-node --prefer-ts-exts bin/service-browser.ts",
+  "tags": {
+    "AppManagerCFNStackKey": "ServiceBrowserStackInfra"
+  },
   "watch": {
     "include": [
       "**"
