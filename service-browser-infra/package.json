@@ -7,8 +7,8 @@
         "deploy": "cdk deploy --require-approval never"
     },
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.0.0",
-        "aws-cdk-lib": "^2.222.0",
+        "@aws-sdk/client-s3": "^3.987.0",
+        "aws-cdk-lib": "^2.248.0",
         "constructs": "^10.0.0",
         "node-fetch": "^2.6.1"
     },
